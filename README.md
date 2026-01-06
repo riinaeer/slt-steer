@@ -4,9 +4,12 @@
 [![Last Commit](https://img.shields.io/github/last-commit/mikkokiviniemi/slt-steer)](https://github.com/mikkokiviniemi/slt-steer)
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mikkokiviniemi/slt-steer/blob/main/LICENSE)
 
-
 ## 💡 About
-A web application (with mobile phone view) that provides individualized treatment guidance for (heart disease) patients.
+This web application provides individualized, evidence-based information and treatment guidance for patients with coronary artery disease. The chatbot leverages large language model (LLM) and retrieval-augmented generation (RAG) to deliver reliable, context-aware responses. The RAG knowledge base consists of official clinical care guidelines and patient education materials (n = 106).
+
+## Requirements
+- Python 3.10.6 (64-bit) (recommended)
+- Node.js (LTS)
 
 ## 🛠️ Installation and running 
 ### Installation and running on Windows
