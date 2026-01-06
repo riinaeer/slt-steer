@@ -1,14 +1,33 @@
 @echo off
+setlocal
+
+cd /d %~dp0\..
+
 cd backend
-python -m venv venv
-call venv\Scripts\activate.bat
-pip install pytest fastapi uvicorn google-generativeai langchain_google_genai langchain_community langchain_text_splitters pypdf chromadb google-cloud-storage langchain-chroma PyPDF2 python-dotenv
-python src\setup_env.py
-for /f "delims=" %%i in ('dir /b /s requirements.txt 2^>nul') do (
-    echo Installing dependencies from %%i...
-    pip install -r "%%i"
+
+if not exist venv\Scripts\python.exe (
+  python -m venv venv
 )
-python src\setup\setup_env.py
-cd ../frontend
+
+call venv\Scripts\activate.bat
+
+python -m pip install --upgrade pip
+
+echo Installing backend dependencies from requirements.lock...
+python -m pip install -r requirements.lock
+
+REM Optional setup scripts
+if exist src\setup_env.py (
+  python src\setup_env.py
+)
+
+if exist src\setup\setup_env.py (
+  python src\setup\setup_env.py
+)
+
+cd ..\frontend
 npm install
+
 cd ..
+echo Install complete.
+endlocal

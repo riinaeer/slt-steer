@@ -1,3 +1,5 @@
 @echo off
-cd frontend
+setlocal
+cd /d %~dp0\..\frontend
 npm run serve
+endlocal
