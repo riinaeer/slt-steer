@@ -1,7 +1,0 @@
-google-cloud-storage
-langchain-google-genai
-langchain_community
-langchain-text-splitters
-langchain-chroma
-PyPDF2
-python-dotenv
