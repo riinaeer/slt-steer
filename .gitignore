@@ -38,3 +38,6 @@ db_cache/
 
 #chroma_db
 chroma_db/
+
+#cloud_storage_key
+cloud_storage_key.json

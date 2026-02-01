@@ -21,16 +21,16 @@ google_api_key = os.getenv('GEMINI_API')
 bucket_name = "training_data-1" 
 
 # ChromaDB:n tallennuskansio
-persist_directory = "data/chroma_db"
+persist_directory = "/app/chroma"
 
 # -----------------------------
 # 1) Ladataan PDF:t (tarvittaessa), alustetaan Chroma
 # -----------------------------
 
-if os.path.exists(persist_directory):
+if os.path.exists(persist_directory + "/chroma.sqlite3"):
     print("Käytetään aiemmin prosessoitua dataa...")
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/gemini-embedding-001",
         google_api_key=google_api_key
     )
     vectorstore = Chroma(
@@ -72,7 +72,7 @@ else:
     docs = text_splitter.create_documents(all_texts)
 
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/gemini-embedding-001",
         google_api_key=google_api_key
     )
     vectorstore = Chroma.from_documents(
