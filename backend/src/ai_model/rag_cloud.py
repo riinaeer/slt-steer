@@ -1,85 +1,21 @@
-# Jos importit eivät toimi, vaihda interpreteriksi Python 3.10.6 64-bit
-from google.cloud import storage
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import create_retrieval_chain
-from langchain_chroma import Chroma
-from PyPDF2 import PdfReader
-import os
-import io
-from dotenv import load_dotenv
+from config import settings
+from .vectorstore import initialize_vectorstore
+
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.memory import ConversationBufferMemory
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.runnables import RunnableLambda
 
-# Google API-key
-load_dotenv() # Load .env file
-google_api_key = os.getenv('GEMINI_API')
-
-# Google Cloud Storage asetukset
-bucket_name = "training_data-1" 
-
-# ChromaDB:n tallennuskansio
-persist_directory = "/app/chroma"
-
+# ----------------------------- 
+# 1) Embeddings + Vectorstore 
 # -----------------------------
-# 1) Ladataan PDF:t (tarvittaessa), alustetaan Chroma
-# -----------------------------
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/gemini-embedding-001",
+    google_api_key=settings.GOOGLE_API_KEY
+)
 
-if os.path.exists(persist_directory + "/chroma.sqlite3"):
-    print("Käytetään aiemmin prosessoitua dataa...")
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
-        google_api_key=google_api_key
-    )
-    vectorstore = Chroma(
-        persist_directory=persist_directory,
-        embedding_function=embeddings
-    )
-else:
-    # Ladataan PDF:t GCS:stä
-    print("Ladataan ja prosessoidaan kaikki PDF-tiedostot bucketista...")
-
-    def download_pdfs_from_bucket(bucket_name):
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(bucket_name)
-        blobs = bucket.list_blobs()
-
-        all_texts = []
-        for blob in blobs:
-            if blob.name.endswith(".pdf"):
-                print(f"Ladataan {blob.name} bucketista {bucket_name}...")
-                pdf_stream = io.BytesIO()
-                blob.download_to_file(pdf_stream)
-                pdf_stream.seek(0)
-                print(f"Tiedosto {blob.name} ladattu muistiin.")
-
-                reader = PdfReader(pdf_stream)
-                text = "\n".join(
-                    [page.extract_text() for page in reader.pages if page.extract_text()]
-                )
-                all_texts.append(text)
-        return all_texts
-
-    all_texts = download_pdfs_from_bucket(bucket_name)
-
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=3000,
-        chunk_overlap=300,
-        separators=["\n\n", "\n", " ", ""],
-    )
-    docs = text_splitter.create_documents(all_texts)
-
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
-        google_api_key=google_api_key
-    )
-    vectorstore = Chroma.from_documents(
-        documents=docs,
-        embedding=embeddings,
-        persist_directory=persist_directory
-    )
+vectorstore = initialize_vectorstore(embeddings, settings.PERSIST_DIRECTORY, settings.BUCKET_NAME)
 
 # -----------------------------
 # 2) Luodaan RAG-ketju (retriever + LLM + prompt)
@@ -94,11 +30,11 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.3, # Alustava lämpötila
     max_tokens=1000,    # nostettu 500 -> 1000
     top_p=0.9,
-    google_api_key=google_api_key
+    google_api_key=settings.GOOGLE_API_KEY
 )
 
 # Alustetaan keskustelumuisti
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory = InMemoryChatMessageHistory()
 
 system_prompt = (
     "You are an assistant for question-answering tasks. "
@@ -133,15 +69,22 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-#rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+rag_chain = (
+    {
+        "context": RunnableLambda(lambda x: x["context"]),
+        "chat_history": RunnableLambda(lambda x: x["chat_history"]),
+        "input": RunnableLambda(lambda x: x["input"]),
+    }
+    | prompt
+    | llm
+)
 
 # -----------------------------
 # 3) Julkaistava funktio, jolla saa RAG-vastauksen
 # -----------------------------
 async def get_rag_response(user_input: str) -> str:
-    """ Kysyy RAG-ketjulta (Chroma+GEMINI) ja palauttaa vastauksen tekstinä. """
-    memory.chat_memory.add_user_message(user_input)
+    # Kysyy RAG-ketjulta (Chroma+GEMINI) ja palauttaa vastauksen tekstinä.
+    memory.add_user_message(user_input)
 
     # Ensihaku (asynkroninen invoke)
     relevant_docs = await retriever.ainvoke(user_input)
@@ -164,16 +107,17 @@ async def get_rag_response(user_input: str) -> str:
             return no_info_msg
 
     # Vastauksen generointi (asynkronisesti)
-    response = await question_answer_chain.ainvoke({
-        "input": user_input,
-        "context": relevant_docs,
-        "chat_history": memory.buffer
+    response = await rag_chain.ainvoke({
+        "context": relevant_docs, 
+        "chat_history": memory.messages,
+        "input": user_input 
     })
 
-    memory.chat_memory.add_ai_message(response)
-    return response
+    memory.add_ai_message(response.content)
+    print(f"Chat memory: {memory.messages}")
 
+    return response.content
 
 def clear_conversation_memory():
-    """ Tyhjentää keskustelumuistin """
+    # Tyhjentää keskustelumuistin
     memory.clear()
