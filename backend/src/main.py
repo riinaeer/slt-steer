@@ -6,6 +6,7 @@ from ai_model import rag_cloud
 from ai_model import utils
 from bson import ObjectId
 from database.db import users_collection
+from routes.professional import router as professional_router
 
 
 app = FastAPI()
@@ -61,11 +62,9 @@ async def send_message(payload: dict):
             user_data = user_doc
 
     # 2) Rakennetaan prompt, jossa lisätään käyttäjädata mukaan
-    if logged_in:
-        if user_data:
-            prompt = f"{user_message}\n\nUser data:\n{user_data}"
-        else:
-            prompt = user_message
+    if logged_in and user_data and user_data.get("patient_info"):
+        patient_info = user_data["patient_info"]
+        prompt = f"{user_message}\n\nPatient info:\n{patient_info}"
     else:
         prompt = user_message
 
@@ -80,4 +79,14 @@ async def send_message(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Register user routes
-app.include_router(user_router, prefix="/users", tags=["users"])
+app.include_router(
+    user_router,
+    prefix="/users",
+    tags=["users"]
+    )
+
+app.include_router(
+    professional_router,
+    prefix="/professional",
+    tags=["professional"]
+)

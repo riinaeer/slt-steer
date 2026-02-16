@@ -187,15 +187,16 @@ async def update_user(user_id: str, user_data: dict, request: Request):
             return {"status": "error", "message": "invalid_id"}
 
         # Kenttien validointi
-        if not all(key in user_data for key in ["weight", "height"]):
-            return {"status": "error", "message": "missing_required_fields"}
-
-        # Numeerien konvertointi
-        try:
-            user_data["weight"] = float(user_data["weight"])
-            user_data["height"] = float(user_data["height"])
-        except (ValueError, TypeError):
-            return {"status": "error", "message": "invalid_numeric_values"}
+        if "patient_info" in user_data and user_data["patient_info"]:
+            pi = user_data["patient_info"]
+            if not all(key in pi for key in ["weight", "height", "age"]):
+                return {"status": "error", "message": "missing_required_fields"}
+            try:
+                pi["weight"] = float(pi["weight"])
+                pi["height"] = float(pi["height"])
+                pi["age"] = int(pi["age"])
+            except (ValueError, TypeError):
+                return {"status": "error", "message": "invalid_numeric_values"}
 
         # tarkistetaan käyttäjän olemassaolo
         existing_user = await users_collection.find_one({"_id": ObjectId(user_id)})
