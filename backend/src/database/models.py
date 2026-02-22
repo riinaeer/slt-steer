@@ -82,3 +82,61 @@ class MessageModel(BaseModel):
     flagged_for_human: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+"""
+Request models
+"""
+class SendMessageRequest(BaseModel):
+    message: str
+
+class ClaimChatRequest(BaseModel):
+    professional_id: str
+
+class ProfessionalMessageRequest(BaseModel):
+    content: str
+    professional_id: str
+
+
+"""
+Response models
+"""
+
+# Shared/generic
+class StatusResponse(BaseModel):
+    status: str
+    message: str
+
+class StatusWithUserResponse(BaseModel):
+    status: str
+    message: Optional[str] = None
+    user: Optional[dict] = None
+
+# Users
+class CreateUserResponse(BaseModel):
+    user_id: str
+    message: str
+
+class CheckSessionResponse(BaseModel):
+    isLoggedIn: bool
+    userId: Optional[str] = None
+
+# Chat
+class ChatReplyResponse(BaseModel):
+    reply: str
+
+# Professional
+class ChatQueueResponse(BaseModel):
+    in_progress: List[dict]
+    waiting: List[dict]
+    closed: List[dict]
+
+class ChatDetailResponse(BaseModel):
+    chat_id: str
+    status: str
+    patient: Optional[dict] = None
+    messages: List[dict]
+
+class MessageCreatedResponse(BaseModel):
+    status: str
+    message: dict

@@ -3,29 +3,22 @@ from ai_model import rag_cloud
 from ai_model import utils
 from bson import ObjectId
 from database.db import users_collection
+from database.models import SendMessageRequest, ChatReplyResponse
 
 router = APIRouter()
 
-@router.post("/send")
-async def send_message(payload: dict, request: Request):
+@router.post("/send", response_model=ChatReplyResponse)
+async def send_message(body: SendMessageRequest, request: Request):
     """
     1) Lukee frontendiltä tulevan 'message' ja (optionaalisen) 'user_id' -kentän.
     2) Jos user_id on annettu ja kelvollinen, hakee käyttäjädatan MongoDB:stä.
     3) Yhdistää käyttäjädatan promtiin ja kutsuu RAG-mallia.
     """
-    
-    logged_in = request.app.state.logged_in 
 
-    # Muutettu käyttämään payloadia, requestin sijaan
-    user_message = payload.get("message")
+    logged_in = request.app.state.logged_in
+
+    user_message = body.message
     user_id = request.app.state.current_user_id
-
-    # jos haluaa muuttaa niin voi hakea user_datan suoraan globaalista muuttujasta ja käyttää sitä
-    # nyt data haetaan ensin MongoDB:stä ja sitten asetetaan globaaliksi muuttujaksi
-    # ja uudelleen sama tässä mainissa
-
-    if not user_message:
-        raise HTTPException(status_code=400, detail="Message is required.")
 
     # 1) Haetaan käyttäjädata, jos user_id on annettu
     user_data = None

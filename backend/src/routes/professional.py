@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 from bson import ObjectId
 from datetime import datetime
 from database.db import chats_collection, messages_collection, users_collection
-from database.models import SenderType, Classification, ChatStatus
+from database.models import SenderType, Classification, ChatStatus, ClaimChatRequest, ProfessionalMessageRequest, ChatQueueResponse, ChatDetailResponse, StatusResponse, MessageCreatedResponse
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ router = APIRouter()
 # -----------------------------
 # 1. GET /chats/queue
 # -----------------------------
-@router.get("/chats/queue")
+@router.get("/chats/queue", response_model=ChatQueueResponse)
 async def get_chat_queue():
     """
     Returns the professional's dashboard queue, grouped into three categories:
@@ -65,7 +65,7 @@ async def get_chat_queue():
 # -----------------------------
 # 2. GET /chats/{chat_id}
 # -----------------------------
-@router.get("/chats/{chat_id}")
+@router.get("/chats/{chat_id}", response_model=ChatDetailResponse)
 async def get_chat(chat_id: str):
     """
     Returns full details for a single chat:
@@ -106,7 +106,7 @@ async def get_chat(chat_id: str):
 # -----------------------------
 # 3. POST /chats/{chat_id}/close
 # -----------------------------
-@router.post("/chats/{chat_id}/close")
+@router.post("/chats/{chat_id}/close", response_model=StatusResponse)
 async def close_chat(chat_id: str):
     """
     Closes a chat session. Sets status to CLOSED and updates the timestamp.
@@ -129,18 +129,14 @@ async def close_chat(chat_id: str):
 # -----------------------------
 # 4. POST /chats/{chat_id}/claim
 # -----------------------------
-@router.post("/chats/{chat_id}/claim")
-async def claim_chat(chat_id: str, payload: dict):
+@router.post("/chats/{chat_id}/claim", response_model=StatusResponse)
+async def claim_chat(chat_id: str, body: ClaimChatRequest):
     """
     A professional claims a waiting chat to begin handling it.
     Transitions chat status from WAITING to IN_PROGRESS and
     assigns the professional to the chat.
-
-    Expects JSON body: { "professional_id": "<ObjectId>" }
     """
-    professional_id = payload.get("professional_id")
-    if not professional_id:
-        raise HTTPException(400, "professional_id missing")
+    professional_id = body.professional_id
 
     # Validate both IDs before querying the database
     if not ObjectId.is_valid(chat_id) or not ObjectId.is_valid(professional_id):
@@ -164,20 +160,15 @@ async def claim_chat(chat_id: str, payload: dict):
 # -----------------------------
 # 5. POST /chats/{chat_id}/messages
 # -----------------------------
-@router.post("/chats/{chat_id}/messages")
-async def send_professional_message(chat_id: str, payload: dict):
+@router.post("/chats/{chat_id}/messages", response_model=MessageCreatedResponse)
+async def send_professional_message(chat_id: str, body: ProfessionalMessageRequest):
     """
     Allows a professional to send a message in a claimed chat.
     The message is stored with sender type PROFESSIONAL and
     default classification SAFE.
-
-    Expects JSON body: { "content": "...", "professional_id": "<ObjectId>" }
     """
-    content = payload.get("content")
-    professional_id = payload.get("professional_id")
-
-    if not content or not professional_id:
-        raise HTTPException(400, "Missing content or professional_id")
+    content = body.content
+    professional_id = body.professional_id
 
     if not ObjectId.is_valid(chat_id) or not ObjectId.is_valid(professional_id):
         raise HTTPException(400, "Invalid ObjectId")
