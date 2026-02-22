@@ -63,5 +63,9 @@ except Exception as e:
     logger.error(f"❌ ERROR: Failed to connect to MongoDB: {e}")
     raise
 
-# Expose db and users_collection for other modules
-__all__ = ["db", "users_collection"]
+# Expose collections for other modules
+__all__ = ["db",
+           "users_collection",
+           "chats_collection",
+           "messages_collection"
+           ]

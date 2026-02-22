@@ -195,4 +195,7 @@ async def send_professional_message(chat_id: str, payload: dict):
 
     result = await messages_collection.insert_one(new_message)
 
-    return {"status": "success", "message_id": str(result.inserted_id)}
+    new_message["_id"] = str(result.inserted_id)
+
+    # Return the whole data of the new_message
+    return {"status": "success", "message": new_message}

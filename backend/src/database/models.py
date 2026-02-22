@@ -6,8 +6,6 @@ from enum import Enum
 
 """
 Enums
-
-Some not yet implemented because of tests
 """
 class AlcoholUse(str, Enum):
     NONE = "none"
@@ -71,7 +69,7 @@ class UserModel(BaseModel):
 
 class ChatModel(BaseModel):
     user_id: str
-    status: str
+    status: ChatStatus
     assigned_professional_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
